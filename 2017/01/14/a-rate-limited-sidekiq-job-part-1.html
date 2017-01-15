@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en-us" class="no-js">
+
+  <head>
+  <link href="http://gmpg.org/xfn/11" rel="profile">
+  <link type="text/plain" rel="author" href="http://cowlibob.co.uk/humans.txt" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+  <!-- Enable responsiveness on mobile devices-->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+  <!-- Optimized for search engines -->
+  <meta name="description" content="Problem: A background task needs to hit an external service, but not too frequently">
+
+  
+
+  <link rel="canonical" href="http://cowlibob.co.uk/2017/01/14/a-rate-limited-sidekiq-job-part-1.html">
+
+  
+
+  
+
+  <!-- Twitter card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@cowlibob">
+  <meta name="twitter:creator" content="@cowlibob">
+  <meta name="twitter:title" content="A Rate-limited Sidekiq Job - Part 1">
+  <meta name="twitter:description" content="Problem: A background task needs to hit an external service, but not too frequently">
+  <meta name="twitter:image" content="http://cowlibob.co.uk/assets/images/hero/fish.jpg">
+  <meta name="twitter:url" content="http://cowlibob.co.uk/2017/01/14/a-rate-limited-sidekiq-job-part-1.html">
+
+  <!-- Open graph -->
+  <meta property="og:title" content="A Rate-limited Sidekiq Job - Part 1">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="http://cowlibob.co.uk/2017/01/14/a-rate-limited-sidekiq-job-part-1.html">
+  <meta property="og:image" content="http://cowlibob.co.uk/assets/images/hero/fish.jpg">
+  <meta property="og:description" content="Problem: A background task needs to hit an external service, but not too frequently">
+  <meta property="og:site_name" content="Cowlibob">
+
+  
+    <meta property="article:published_time" content="2017-01-14T22:28:15Z">
+    <meta property="article:author" content="https://www.facebook.com/james.cowlishaw">
+    
+  
+
+  
+
+  
+
+  <meta property="fb:admins" content="your facebook profile id">
+  <meta property="fb:app_id" content="your facebook app id">
+
+  <title>
+    
+      A Rate-limited Sidekiq Job - Part 1 &middot; Cowlibob
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/assets/css/main.css">
+
+  <!-- Fonts -->
+  <link href='http://fonts.googleapis.com/css?family=Source+Serif+Pro:700,400' rel='stylesheet' type='text/css'>
+  <link href='http://fonts.googleapis.com/css?family=Roboto:100,300' rel='stylesheet' type='text/css'>
+  <link href='http://fonts.googleapis.com/css?family=PT+Sans:700' rel='stylesheet' type='text/css'>
+
+  <!-- Icons -->
+  <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/assets/apple-touch-icon-144-precomposed.png">
+  <link rel="shortcut icon" href="/assets/images/favicon.ico">
+
+  <!-- RSS -->
+  <link rel="alternate" type="application/rss+xml" title="RSS" href="/feed.xml">
+
+  <!-- modernizer -->
+  <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
+
+  <!-- Code highlighting using highlight.js: https://highlightjs.org/ -->
+  <link rel="stylesheet" type="text/css" href="/assets/css/tomorrow-night.css" />
+  <script src="/assets/javascripts/highlight.pack.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script>
+
+  <!--[if lt IE 9]>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.2/html5shiv.min.js"></script>
+  <![endif]-->
+
+  <!--[if (gte IE 6)&(lte IE 8)]>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/respond.js/1.3.0/respond.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/selectivizr/1.0.2/selectivizr-min.js"></script>
+  <![endif]-->
+</head>
+
+
+  <body>
+    
+      <input type="checkbox" class="sidebar-checkbox" id="sidebar-checkbox">
+      <nav role="navigation" class="sidebar sidebar--right">
+  <a href="/" class="textLogo textLogo--white textLogo--sidebar">Cowlibob</a>
+  <ul class="sidebar-recentPosts">
+    
+      
+        <!-- exclude current post -->
+      
+    
+      
+      <li>
+        
+          <a href="/2015/02/27/building-a-guard-rail.html" class="sidebar-recentPosts-image-wrapper">
+            <img src="/assets/images/thumbnail/start-line.jpg" style="" alt="">
+          </a>
+        
+        <a href="/2015/02/27/building-a-guard-rail.html">Building a guard rail</a>
+        <div class="postMeta">27 February 2015</div>
+      </li>
+      
+    
+      
+      <li>
+        
+          <a href="/2015/02/15/sharing-with-the-world.html" class="sidebar-recentPosts-image-wrapper">
+            <img src="/assets/images/thumbnail/taking-a-moment.jpg" style="" alt="">
+          </a>
+        
+        <a href="/2015/02/15/sharing-with-the-world.html">Sharing with the world</a>
+        <div class="postMeta">15 February 2015</div>
+      </li>
+      
+    
+  </ul>
+</nav>
+
+      <nav class="menuWrapper">
+  <ul class="popover popover--menu">
+    <li class="menu-avatar">
+      <a href="/" class="brandLogo brandLogo--small
+      
+      ">Cowlibob</a>
+      <ul class="list list--avatarMenu hidden">
+        <li class="list-item"><a href="">Twitter</a></li>
+        <li class="list-item"><a href="">LinkedIn</a></li>
+        <li class="list-item"><a href="">Quora</a></li>
+        <li class="list-item"><a href="">Dribbble</a></li>
+        <li class="list-item"><a href="">Kiva</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+    
+
+    <article class="postWrapper">
+  <section class="section--first is-darkBackgrounded u-table">
+    <div class="section-backgroundImage">
+
+      
+        <img class="post-featuredImage" src="/assets/images/hero/fish.jpg" style="
+        
+          top:-50%;
+        
+        " alt="">
+        
+
+    </div>
+    <div class="section-gradient
+    
+      
+    
+    "></div>
+    <div class="section-title is-darkBackgrounded u-tableCell u-verticalAlignMiddle">
+      <div class="container">
+        <h2>A Rate-limited Sidekiq Job - Part 1</h2>
+        <div class="postMeta-wrapper">
+          <ul class="postMeta">
+            <li class="postMeta-datetime">
+              <time datetime="2017-01-14 22:28:15 +0000">
+                14 January 2017
+              </time>
+            </li>
+<!--             <li class="postMeta-author">
+              By James Cowlishaw
+            </li>
+ -->            
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="section--last">
+    <div class="container container--content">
+      <div class="content-body">
+
+        <p><em>Problem</em>: A background task needs to hit an external service, but not too frequently</p>
+
+<p><em>Solution</em>: Use the rate limit gem</p>
+
+<h2>What do we do when the limit has been met?</h2>
+
+<p>Recently, I’ve been working on the above. I thought I&#39;d write about the initial solution I tried, which is fine, but doesn&#39;t quite scale if you are frequently hitting the limit. The next post will address an alternate take.</p>
+
+<p>TLDR; raise an exception if the rate limit has been met, and let sidekiq queue the job for later.</p>
+
+<p><a href="https://github.com/mperham/sidekiq">Sidekiq</a> has a great feature, in that failed jobs will be re-queued.</p>
+
+<p>Some details on the rate limits involved:</p>
+
+<p>We want to hit the external service (Strava API) a maximum of 600 times in a fifteen minute period (900 seconds).</p>
+
+<p>To build the basic Sidekiq job, retrying every fifteen minutes if we failed (to let the rate limit replenish)</p>
+
+<pre><code>class StravaSyncUserJob
+  include Sidekiq::Worker
+  
+  sidekiq_retry_in do |count|
+    15.minutes
+  end
+
+  def perform(user_id)
+  end
+end
+</code></pre>
+
+<p>Now if our StravaSyncUserJob#perform implementation raises, the task will be shelved for a later attempt. Let&#39;s configure the rate limiting with the <a href="https://github.com/ejfinneran/ratelimit">Ratelimit gem</a></p>
+
+<p>In our Gemfile:</p>
+
+<pre><code>gem &#39;ratelimit&#39;
+</code></pre>
+
+<p>Then install the gem with <code>bundle install</code></p>
+
+<p>Now we&#39;ll setup some values:</p>
+
+<pre><code>RL_SUBJECT = &quot;users&quot; # Just a way to separate different ratelimit counts, can be any string in our case
+
+# 600 hits per 15 minutes
+RL_THRESHOLD = 600
+RL_INTERVAL = 15.minutes
+</code></pre>
+
+<p>And implement our sidekiq perform method:</p>
+
+<pre><code>def perform(user_id)
+  ratelimited do
+    fetch_strava_data(user_id)
+  end
+end
+</code></pre>
+
+<p>Creating the ratelimit object is easy, we give it a unique key, and an instance of the redis client, if we already have one for other purposes:</p>
+
+<pre><code>def ratelimit
+  @ratelimit ||= Ratelimit.new(
+    &quot;strava_sync&quot;,
+    redis: $redis # We are already using Redis elsewhere in the app. If you aren&#39;t, leave out this parameter
+  )
+end
+</code></pre>
+
+<p>Next, we&#39;ll implement the ratelimited method, which accepts a block and only calls it if the service has not exceeded the limit.</p>
+
+<pre><code>def ratelimited(&amp;:block)
+  raise &quot;Ratelimit met&quot; if ratelimit.exceeded?(RL_SUBJECT, interval: RL_INTERVAL, threshold: RL_THRESHOLD)
+  yield block
+end
+</code></pre>
+
+<p>Above, you can see we implicitly raise a RuntimeError with a message. This exception will trigger Sidekiq to re-queue the job and try in 15 minutes.</p>
+
+<p>Earlier, I hinted this was not the solution we ended with (I&#39;ll write that up in the next post). We have somewhere around 6000 users for which we want twice daily sync of strava trips taken. Coupled with the short nature of the job (many requests will do little work as not all users will have recorded a ride since our last check), this causes lots of retries as we quickly hit the 600 requests per 15 minutes ceiling. However, the above approach sees perhaps a majority of the jobs re-queued by Sidekiq. This is fine, as they will get serviced eventually, and sidekiq is very efficient at it&#39;s work. But thousands of jobs were being requeued was the norm (not the exception), which feels wrong.</p>
+
+
+      </div>
+    </div>
+    <hr class="u-clearHr"/>
+    <hr class="u-clearHr"/>
+    <hr/>
+    <div class="container container--content">
+      <div class="content-body">
+        <section class="section--subscribe">
+  <div class="container container--content">
+    <h3 class="u-alignCenter">Stay in touch</h3>
+    <p>
+      Hi, I'm <a href="/about/">James Cowlishaw</a>. Mickey is a minimal one-column theme for Spelt, based on <a href="https://github.com/vincentchan/mickey">Mickey</a> for Jekyll, by <a href="http://github.com/vincentchan">@VincentChan</a>.
+    </p>
+    
+    <hr/>
+  </div>
+</section>
+
+        <footer class="section--footer">
+  <div class="container container--content">
+    <div>
+      Lovingly baked with <a href="http://spelt.io">Spelt</a>.
+    </div>
+    <div class="socialAccountListWrapper">
+      <ul class="socialAccountList">
+        <li><a href="http://twitter.com/cowlibob" class="socialAccount socialAccount--twitter" target="_blank"></a></li>
+        <li><a href="http://facebook.com/james.cowlishaw" class="socialAccount socialAccount--facebook" target="_blank"></a></li>
+        <li><a href="http://www.linkedin.com/in/james-cowlishaw-b266511" class="socialAccount socialAccount--linkedin" target="_blank"></a></li>
+        <li><a href="https://github.com/cowlibob" class="socialAccount socialAccount--github" target="_blank"></a></li>
+        <li><a href="feed.xml" class="socialAccount socialAccount--rss" target="_blank"></a></li>
+      </ul>
+    </div>
+    <div>
+      <strong>James Cowlishaw</strong> © 2016 All Rights Reserved.
+    </div>
+  </div>
+</footer>
+
+        
+      </div>
+    </div>
+  </section>
+  <footer class="postFooter">
+    
+  </footer>
+</article>
+
+<div class="modal-toggle-group animate scaleIn">
+  <div class="modal-toggle-bubbleShadow"></div>
+  <div class="modal-toggle-bubble"></div>
+  <div class="modal-toggle-wrapper"></div>
+  <div class="modal-toggle-close-wrapper">
+    <div class="modal-toggle-close"></div>
+  </div>
+</div>
+
+<div class="fullscreenModal u-table">
+  <div class="u-tableCell u-verticalAlignMiddle">
+    <h2 class="h2--shareTitle">Share this story</h2>
+    <ul class="shareWrapper">
+      <li><a class="shareButton shareButton--twitter" href="http://twitter.com/share?text=&quot;A Rate-limited Sidekiq Job - Part 1&quot; by @cowlibob&amp;url=http://cowlibob.co.uk/2017/01/14/a-rate-limited-sidekiq-job-part-1.html" target="_blank"></a></li>
+      <li><a class="shareButton shareButton--facebook" href="https://www.facebook.com/sharer/sharer.php?u=http://cowlibob.co.uk/2017/01/14/a-rate-limited-sidekiq-job-part-1.html" target="_blank"></a></li>
+      <li><a class="shareButton shareButton--linkedin" href="https://www.linkedin.com/shareArticle
+?mini=true&url=http://cowlibob.co.uk/2017/01/14/a-rate-limited-sidekiq-job-part-1.html&title=A Rate-limited Sidekiq Job - Part 1"  target="_blank"></a></li>
+      <li><a class="shareButton shareButton--buffer" href="https://buffer.com/add?text=A Rate-limited Sidekiq Job - Part 1 by @VincentChan&url=http://cowlibob.co.uk/2017/01/14/a-rate-limited-sidekiq-job-part-1.html" target="_blank"></a></li>
+      <li><a class="shareButton shareButton--hackernews" href="http://news.ycombinator.com/submitlink?u=http://cowlibob.co.uk/2017/01/14/a-rate-limited-sidekiq-job-part-1.html&t=A Rate-limited Sidekiq Job - Part 1" target="_blank"></a></li>
+      <li><a class="shareButton shareButton--pocket" href="https://getpocket.com/save?url=http://cowlibob.co.uk/2017/01/14/a-rate-limited-sidekiq-job-part-1.html&title=A Rate-limited Sidekiq Job - Part 1" target="_blank"></a></li>
+    </ul>
+  </div>
+</div>
+
+
+
+    
+      <label for="sidebar-checkbox" class="sidebar-toggle-wrapper">
+  <div class="sidebar-toggle"></div>
+</label>
+
+    
+
+    
+
+    <!-- Javascript -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+<script src="/assets/javascripts/imagesloaded.pkgd.min.js"></script>
+
+<script>
+  $(document).ready(function(){
+
+    // Featured image loaded behavior
+    $('.section-backgroundImage img').imagesLoaded()
+      .done( function( instance ) {
+        $('.post-featuredImage').addClass('is-loaded');
+      });
+
+    // Modal toggle behavior
+    $('.modal-toggle-wrapper').click(function() {
+    	$(this).toggleClass('active');
+      $('.modal-toggle-bubble').toggleClass('active');
+    	$('.modal-toggle-bubbleShadow').toggleClass('active');
+      $('.modal-toggle-close-wrapper').toggleClass('active');
+      $('.fullscreenModal').toggleClass('active');
+    });
+
+    // Prevent default anchor event and make a share popup
+    $.fn.sharePopup = function (e, intWidth, intHeight, blnResize) {
+
+      e.preventDefault();
+      intWidth = intWidth || '750';
+      intHeight = intHeight || '500';
+      strResize = (blnResize ? 'yes' : 'no');
+
+      //// Set title and open popup with focus on it
+      var strTitle = ((typeof this.attr('title') !== 'undefined') ? this.attr('title') : 'Social Share'),
+          strParam = 'width=' + intWidth + ',height=' + intHeight + ',resizable=' + strResize,
+          objWindow = window.open(this.attr('href'), strTitle, strParam).focus();
+    }
+
+    $('.shareButton').on("click", function(e) {
+      $(this).sharePopup(e);
+    });
+  });
+
+  // Show modal toggle after scrolling 300px
+  $(document).scroll(function() {
+    $('.modal-toggle-group').toggleClass('active', $(document).scrollTop() >= 300);
+  });
+</script>
+
+  </body>
+</html>
