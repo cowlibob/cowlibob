@@ -10,7 +10,7 @@
 				<title>A Rate-limited Sidekiq Job - Part 2</title>
 				
 				
-					<description>In the last (post)[/2017/01/14/a-rate-limited-sidekiq-job-part-1.html], I talked about an initial approach to a rate limited sidekiq job. Sadly, it didn&amp;#39;t scale for us; thousands of jobs were being tried and retried, while all of them exited early as the rate limit had been exceeded.</description>
+					<description>In the last &lt;a href=&quot;/2017/01/14/a-rate-limited-sidekiq-job-part-1.html&quot;&gt;post&lt;/a&gt;, I talked about an initial approach to a rate limited sidekiq job. Sadly, it didn&amp;#39;t scale for us; thousands of jobs were being tried and retried, while all of them exited early as the rate limit had been exceeded.</description>
 				
 				<pubDate>Sat, 21 Jan 2017 11:16:51 +0000</pubDate>
 				<link>http://cowlibob.co.uk/2017/01/21/a-rate-limited-sidekiq-job-part-2.html</link>

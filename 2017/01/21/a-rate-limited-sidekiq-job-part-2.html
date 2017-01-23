@@ -11,7 +11,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 
   <!-- Optimized for search engines -->
-  <meta name="description" content="In the last (post)[/2017/01/14/a-rate-limited-sidekiq-job-part-1.html], I talked about an initial approach to a rate limited sidekiq job. Sadly, it didn&#39;t s">
+  <meta name="description" content="In the last post, I talked about an initial approach to a rate limited sidekiq job. Sadly, it didn&#39;t scale for us; thousands of jobs were being tried and re">
 
   
 
@@ -26,16 +26,16 @@
   <meta name="twitter:site" content="@cowlibob">
   <meta name="twitter:creator" content="@cowlibob">
   <meta name="twitter:title" content="A Rate-limited Sidekiq Job - Part 2">
-  <meta name="twitter:description" content="In the last (post)[/2017/01/14/a-rate-limited-sidekiq-job-part-1.html], I talked about an initial approach to a rate limited sidekiq job. Sadly, it didn&#39;t s">
-  <meta name="twitter:image" content="http://cowlibob.co.uk/assets/images/hero/fish.jpg">
+  <meta name="twitter:description" content="In the last post, I talked about an initial approach to a rate limited sidekiq job. Sadly, it didn&#39;t scale for us; thousands of jobs were being tried and re">
+  <meta name="twitter:image" content="http://cowlibob.co.uk/assets/images/hero/gnome.jpg">
   <meta name="twitter:url" content="http://cowlibob.co.uk/2017/01/21/a-rate-limited-sidekiq-job-part-2.html">
 
   <!-- Open graph -->
   <meta property="og:title" content="A Rate-limited Sidekiq Job - Part 2">
   <meta property="og:type" content="article">
   <meta property="og:url" content="http://cowlibob.co.uk/2017/01/21/a-rate-limited-sidekiq-job-part-2.html">
-  <meta property="og:image" content="http://cowlibob.co.uk/assets/images/hero/fish.jpg">
-  <meta property="og:description" content="In the last (post)[/2017/01/14/a-rate-limited-sidekiq-job-part-1.html], I talked about an initial approach to a rate limited sidekiq job. Sadly, it didn&#39;t s">
+  <meta property="og:image" content="http://cowlibob.co.uk/assets/images/hero/gnome.jpg">
+  <meta property="og:description" content="In the last post, I talked about an initial approach to a rate limited sidekiq job. Sadly, it didn&#39;t scale for us; thousands of jobs were being tried and re">
   <meta property="og:site_name" content="Cowlibob">
 
   
@@ -165,7 +165,7 @@
     <div class="section-backgroundImage">
 
       
-        <img class="post-featuredImage" src="/assets/images/hero/fish.jpg" style="
+        <img class="post-featuredImage" src="/assets/images/hero/gnome.jpg" style="
         
           top:-50%;
         
@@ -201,9 +201,49 @@
     <div class="container container--content">
       <div class="content-body">
 
-        <p>In the last (post)[/2017/01/14/a-rate-limited-sidekiq-job-part-1.html], I talked about an initial approach to a rate limited sidekiq job. Sadly, it didn&#39;t scale for us; thousands of jobs were being tried and retried, while all of them exited early as the rate limit had been exceeded.</p>
+        <p>In the last <a href="/2017/01/14/a-rate-limited-sidekiq-job-part-1.html">post</a>, I talked about an initial approach to a rate limited sidekiq job. Sadly, it didn&#39;t scale for us; thousands of jobs were being tried and retried, while all of them exited early as the rate limit had been exceeded.</p>
 
-<p>The implementation we have landed</p>
+<p>The implementation we have settled on is slightly different.</p>
+
+<p>Instead of raising an exception when the rate limit had been met (forcing the job back into the queue, only for the next to be tried immediately), we wait.</p>
+
+<p>Our original ratelimited() method changes from</p>
+
+<pre><code>def ratelimited(&amp;:block)
+  raise &quot;Ratelimit met&quot; if ratelimit.exceeded?(RL_SUBJECT, interval: RL_INTERVAL, threshold: RL_THRESHOLD)
+  ratelimit.add(RL_SUBJECT)
+  block.call
+end
+</code></pre>
+
+<p>to</p>
+
+<pre><code>def ratelimited(&amp;:block)
+  ratelimit.exec_within_threshold(RL_SUBJECT, interval: RL_INTERVAL, threshold: RL_THRESHOLD) do
+    ratelimit.add(RL_SUBJECT)
+    block.call
+  end
+end
+</code></pre>
+
+<p>Here, the Ratelimit gem provides a method which takes a block and executes it if the limit has not been met. Otherwise, it calls sleep() for the remaining duration of the RL_INTERVAL.</p>
+
+<p>Sleeping until the rate limit is no-longer exceeded prevents Sidekiq from thrashing through jobs, but has a drawback. If you have other jobs in the queue, these will be blocked too.</p>
+
+<p>We solve this by running with different Sidekiq queues, one for the rate-limited task (in our case, Strava user sync), another for other tasks. However, we still have a problem, as the strava queue will block the Sidekiq process. To solve this, we specify Sidekiq will run multiple processes, each with a different set of queues.</p>
+
+<p>As we deploy with <a href="http://capistranorb.com">Capistrano</a>, the sidekiq processes are configured using the <a href="https://rubygems.org/gems/capistrano-sidekiq">capistrano-sidekiq</a> gem.</p>
+
+<p>In &#39;&#39;&#39;config/deploy/production.rb&#39;&#39;&#39;</p>
+
+<pre><code>set :sidekiq_processes, 2
+set :sidekiq_options_per_process, [
+  &quot;--concurrency 1 --queue strava&quot;,
+  &quot;--concurrency 10 --queue default --queue some_other_queue&quot;
+]
+</code></pre>
+
+<p>Above, we see capistrano-sidekiq properites being set to ensure two separate sidekiq processes are running. Each will run a different queue, and we ask the strava running process to only bother with one thread. More would be fine, but unless the jobs take a long time, one thread can probably saturate the strava API rate limit.</p>
 
 
       </div>
