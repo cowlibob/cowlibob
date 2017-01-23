@@ -99,6 +99,18 @@
   <ul class="sidebar-recentPosts">
     
       
+      <li>
+        
+          <a href="/2017/01/21/a-rate-limited-sidekiq-job-part-2.html" class="sidebar-recentPosts-image-wrapper">
+            <img src="/assets/images/thumbnail/fish.jpg" style="" alt="">
+          </a>
+        
+        <a href="/2017/01/21/a-rate-limited-sidekiq-job-part-2.html">A Rate-limited Sidekiq Job - Part 2</a>
+        <div class="postMeta">21 January 2017</div>
+      </li>
+      
+    
+      
         <!-- exclude current post -->
       
     
@@ -260,7 +272,7 @@ end
 
 <pre><code>def ratelimited(&amp;:block)
   raise &quot;Ratelimit met&quot; if ratelimit.exceeded?(RL_SUBJECT, interval: RL_INTERVAL, threshold: RL_THRESHOLD)
-  yield block
+  block.call
 end
 </code></pre>
 
