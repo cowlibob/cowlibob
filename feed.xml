@@ -7,6 +7,17 @@
 		<atom:link href="http://cowlibob.co.uk/feed.xml" rel="self" type="application/rss+xml" />
 		
 			<item>
+				<title>Debugging the whole ecosystem</title>
+				
+				
+					<description>I was recently exporting a large number of records via CSV, some 130k rows. Luckily, the rows only consisted of three columns.</description>
+				
+				<pubDate>Sat, 28 Jan 2017 11:04:52 +0000</pubDate>
+				<link>http://cowlibob.co.uk/2017/01/28/debugging-the-whole-ecosystem.html</link>
+				<guid isPermaLink="true">http://cowlibob.co.uk/2017/01/28/debugging-the-whole-ecosystem.html</guid>
+			</item>
+		
+			<item>
 				<title>A Rate-limited Sidekiq Job - Part 2</title>
 				
 				

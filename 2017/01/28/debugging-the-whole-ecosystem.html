@@ -11,11 +11,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 
   <!-- Optimized for search engines -->
-  <meta name="description" content="Problem: A background task needs to hit an external service, but not too frequently">
+  <meta name="description" content="I was recently exporting a large number of records via CSV, some 130k rows. Luckily, the rows only consisted of three columns.">
 
   
 
-  <link rel="canonical" href="http://cowlibob.co.uk/2017/01/14/a-rate-limited-sidekiq-job-part-1.html">
+  <link rel="canonical" href="http://cowlibob.co.uk/2017/01/28/debugging-the-whole-ecosystem.html">
 
   
 
@@ -25,21 +25,21 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@cowlibob">
   <meta name="twitter:creator" content="@cowlibob">
-  <meta name="twitter:title" content="A Rate-limited Sidekiq Job - Part 1">
-  <meta name="twitter:description" content="Problem: A background task needs to hit an external service, but not too frequently">
-  <meta name="twitter:image" content="http://cowlibob.co.uk/assets/images/hero/fish.jpg">
-  <meta name="twitter:url" content="http://cowlibob.co.uk/2017/01/14/a-rate-limited-sidekiq-job-part-1.html">
+  <meta name="twitter:title" content="Debugging the whole ecosystem">
+  <meta name="twitter:description" content="I was recently exporting a large number of records via CSV, some 130k rows. Luckily, the rows only consisted of three columns.">
+  <meta name="twitter:image" content="http://cowlibob.co.ukpath/to/site/icon">
+  <meta name="twitter:url" content="http://cowlibob.co.uk/2017/01/28/debugging-the-whole-ecosystem.html">
 
   <!-- Open graph -->
-  <meta property="og:title" content="A Rate-limited Sidekiq Job - Part 1">
+  <meta property="og:title" content="Debugging the whole ecosystem">
   <meta property="og:type" content="article">
-  <meta property="og:url" content="http://cowlibob.co.uk/2017/01/14/a-rate-limited-sidekiq-job-part-1.html">
-  <meta property="og:image" content="http://cowlibob.co.uk/assets/images/hero/fish.jpg">
-  <meta property="og:description" content="Problem: A background task needs to hit an external service, but not too frequently">
+  <meta property="og:url" content="http://cowlibob.co.uk/2017/01/28/debugging-the-whole-ecosystem.html">
+  <meta property="og:image" content="http://cowlibob.co.ukpath/to/site/icon">
+  <meta property="og:description" content="I was recently exporting a large number of records via CSV, some 130k rows. Luckily, the rows only consisted of three columns.">
   <meta property="og:site_name" content="Cowlibob">
 
   
-    <meta property="article:published_time" content="2017-01-14T22:28:15Z">
+    <meta property="article:published_time" content="2017-01-28T11:04:52Z">
     <meta property="article:author" content="https://www.facebook.com/james.cowlishaw">
     
   
@@ -53,7 +53,7 @@
 
   <title>
     
-      A Rate-limited Sidekiq Job - Part 1 &middot; Cowlibob
+      Debugging the whole ecosystem &middot; Cowlibob
     
   </title>
 
@@ -99,11 +99,7 @@
   <ul class="sidebar-recentPosts">
     
       
-      <li>
-        
-        <a href="/2017/01/28/debugging-the-whole-ecosystem.html">Debugging the whole ecosystem</a>
-        <div class="postMeta">28 January 2017</div>
-      </li>
+        <!-- exclude current post -->
       
     
       
@@ -119,7 +115,15 @@
       
     
       
-        <!-- exclude current post -->
+      <li>
+        
+          <a href="/2017/01/14/a-rate-limited-sidekiq-job-part-1.html" class="sidebar-recentPosts-image-wrapper">
+            <img src="/assets/images/thumbnail/fish.jpg" style="" alt="">
+          </a>
+        
+        <a href="/2017/01/14/a-rate-limited-sidekiq-job-part-1.html">A Rate-limited Sidekiq Job - Part 1</a>
+        <div class="postMeta">14 January 2017</div>
+      </li>
       
     
       
@@ -173,12 +177,8 @@
     <div class="section-backgroundImage">
 
       
-        <img class="post-featuredImage" src="/assets/images/hero/fish.jpg" style="
-        
-          top:-50%;
-        
-        " alt="">
-        
+         <img class="post-featuredImage" src="/assets/images/hero/rail-riding.jpg">
+      
 
     </div>
     <div class="section-gradient
@@ -188,12 +188,12 @@
     "></div>
     <div class="section-title is-darkBackgrounded u-tableCell u-verticalAlignMiddle">
       <div class="container">
-        <h2>A Rate-limited Sidekiq Job - Part 1</h2>
+        <h2>Debugging the whole ecosystem</h2>
         <div class="postMeta-wrapper">
           <ul class="postMeta">
             <li class="postMeta-datetime">
-              <time datetime="2017-01-14 22:28:15 +0000">
-                14 January 2017
+              <time datetime="2017-01-28 11:04:52 +0000">
+                28 January 2017
               </time>
             </li>
 <!--             <li class="postMeta-author">
@@ -209,84 +209,37 @@
     <div class="container container--content">
       <div class="content-body">
 
-        <p><em>Problem</em>: A background task needs to hit an external service, but not too frequently</p>
+        <p>I was recently exporting a large number of records via CSV, some 130k rows. Luckily, the rows only consisted of three columns.</p>
 
-<p><em>Solution</em>: Use the rate limit gem</p>
+<p>When testing the output, I noticed that there were only 65355 rows written.
+A nice round number, being the highest positive integer that can be stored in a 16bit value.</p>
 
-<h2>What do we do when the limit has been met?</h2>
+<p>I checked the docs for Ruby&#39;s IO#write, and noted that from IO#write_nonblock, it may be buffered.
+So stepping through the loop from the working case to the failing:</p>
 
-<p>Recently, I’ve been working on the above. I thought I&#39;d write about the initial solution I tried, which is fine, but doesn&#39;t quite scale if you are frequently hitting the limit. The next post will address an alternate take.</p>
-
-<p>TLDR; raise an exception if the rate limit has been met, and let sidekiq queue the job for later.</p>
-
-<p><a href="https://github.com/mperham/sidekiq">Sidekiq</a> has a great feature, in that failed jobs will be re-queued.</p>
-
-<p>Some details on the rate limits involved:</p>
-
-<p>We want to hit the external service (Strava API) a maximum of 600 times in a fifteen minute period (900 seconds).</p>
-
-<p>To build the basic Sidekiq job, retrying every fifteen minutes if we failed (to let the rate limit replenish)</p>
-
-<pre><code>class StravaSyncUserJob
-  include Sidekiq::Worker
-  
-  sidekiq_retry_in do |count|
-    15.minutes
-  end
-
-  def perform(user_id)
+<pre><code>File.open(path, &#39;wb&#39;) do |f|
+  records.each.with_index do |record, index|
+    binding.pry if index &gt;= 65354
+    f.write(record.csv_row)
   end
 end
 </code></pre>
 
-<p>Now if our StravaSyncUserJob#perform implementation raises, the task will be shelved for a later attempt. Let&#39;s configure the rate limiting with the <a href="https://github.com/ejfinneran/ratelimit">Ratelimit gem</a></p>
+<p>I could see that it failed to alter the size of the file at <code>path</code>. Manually calling <code>f.flush &amp;&amp; f.write(row_data)</code> seemed to make a difference to the file size.</p>
 
-<p>In our Gemfile:</p>
+<p>Now I inserted a IO#flush in the output loop every 100 rows or so.</p>
 
-<pre><code>gem &#39;ratelimit&#39;
-</code></pre>
-
-<p>Then install the gem with <code>bundle install</code></p>
-
-<p>Now we&#39;ll setup some values:</p>
-
-<pre><code>RL_SUBJECT = &quot;users&quot; # Just a way to separate different ratelimit counts, can be any string in our case
-
-# 600 hits per 15 minutes
-RL_THRESHOLD = 600
-RL_INTERVAL = 15.minutes
-</code></pre>
-
-<p>And implement our sidekiq perform method:</p>
-
-<pre><code>def perform(user_id)
-  ratelimited do
-    fetch_strava_data(user_id)
+<pre><code>File.open(path, &#39;wb&#39;) do |f|
+  records.each.with_index do |record, index|
+    f.write(record.csv_row)
+    f.flush if index % 100 == 0
   end
 end
 </code></pre>
 
-<p>Creating the ratelimit object is easy, we give it a unique key, and an instance of the redis client, if we already have one for other purposes:</p>
+<p>Still no difference in the output though, loading it into <a href="https://www.apple.com/uk/pages/">Apple Pages</a>. Still limited to 65355 rows. On a hunch, I opened the file in vim. Lo and behold! 130k lines ready and waiting for me. Going back, I removed the <code>IO#flush</code> call, regenerated the file, and still Pages reports 65355 rows, vim reports 130k lines.</p>
 
-<pre><code>def ratelimit
-  @ratelimit ||= Ratelimit.new(
-    &quot;strava_sync&quot;,
-    redis: $redis # We are already using Redis elsewhere in the app. If you aren&#39;t, leave out this parameter
-  )
-end
-</code></pre>
-
-<p>Next, we&#39;ll implement the ratelimited method, which accepts a block and only calls it if the service has not exceeded the limit.</p>
-
-<pre><code>def ratelimited(&amp;:block)
-  raise &quot;Ratelimit met&quot; if ratelimit.exceeded?(RL_SUBJECT, interval: RL_INTERVAL, threshold: RL_THRESHOLD)
-  block.call
-end
-</code></pre>
-
-<p>Above, you can see we implicitly raise a RuntimeError with a message. This exception will trigger Sidekiq to re-queue the job and try in 15 minutes.</p>
-
-<p>Earlier, I hinted this was not the solution we ended with (I&#39;ll write that up in the next post). We have somewhere around 6000 users for which we want twice daily sync of strava trips taken. Coupled with the short nature of the job (many requests will do little work as not all users will have recorded a ride since our last check), this causes lots of retries as we quickly hit the 600 requests per 15 minutes ceiling. However, the above approach sees perhaps a majority of the jobs re-queued by Sidekiq. This is fine, as they will get serviced eventually, and sidekiq is very efficient at it&#39;s work. But thousands of jobs were being requeued was the norm (not the exception), which feels wrong.</p>
+<p>So, moral of the story... don&#39;t rely on pretty software for large data sets? Trust but verify? Commandline wins?</p>
 
 
       </div>
@@ -349,13 +302,13 @@ end
   <div class="u-tableCell u-verticalAlignMiddle">
     <h2 class="h2--shareTitle">Share this story</h2>
     <ul class="shareWrapper">
-      <li><a class="shareButton shareButton--twitter" href="http://twitter.com/share?text=&quot;A Rate-limited Sidekiq Job - Part 1&quot; by @cowlibob&amp;url=http://cowlibob.co.uk/2017/01/14/a-rate-limited-sidekiq-job-part-1.html" target="_blank"></a></li>
-      <li><a class="shareButton shareButton--facebook" href="https://www.facebook.com/sharer/sharer.php?u=http://cowlibob.co.uk/2017/01/14/a-rate-limited-sidekiq-job-part-1.html" target="_blank"></a></li>
+      <li><a class="shareButton shareButton--twitter" href="http://twitter.com/share?text=&quot;Debugging the whole ecosystem&quot; by @cowlibob&amp;url=http://cowlibob.co.uk/2017/01/28/debugging-the-whole-ecosystem.html" target="_blank"></a></li>
+      <li><a class="shareButton shareButton--facebook" href="https://www.facebook.com/sharer/sharer.php?u=http://cowlibob.co.uk/2017/01/28/debugging-the-whole-ecosystem.html" target="_blank"></a></li>
       <li><a class="shareButton shareButton--linkedin" href="https://www.linkedin.com/shareArticle
-?mini=true&url=http://cowlibob.co.uk/2017/01/14/a-rate-limited-sidekiq-job-part-1.html&title=A Rate-limited Sidekiq Job - Part 1"  target="_blank"></a></li>
-      <li><a class="shareButton shareButton--buffer" href="https://buffer.com/add?text=A Rate-limited Sidekiq Job - Part 1 by @VincentChan&url=http://cowlibob.co.uk/2017/01/14/a-rate-limited-sidekiq-job-part-1.html" target="_blank"></a></li>
-      <li><a class="shareButton shareButton--hackernews" href="http://news.ycombinator.com/submitlink?u=http://cowlibob.co.uk/2017/01/14/a-rate-limited-sidekiq-job-part-1.html&t=A Rate-limited Sidekiq Job - Part 1" target="_blank"></a></li>
-      <li><a class="shareButton shareButton--pocket" href="https://getpocket.com/save?url=http://cowlibob.co.uk/2017/01/14/a-rate-limited-sidekiq-job-part-1.html&title=A Rate-limited Sidekiq Job - Part 1" target="_blank"></a></li>
+?mini=true&url=http://cowlibob.co.uk/2017/01/28/debugging-the-whole-ecosystem.html&title=Debugging the whole ecosystem"  target="_blank"></a></li>
+      <li><a class="shareButton shareButton--buffer" href="https://buffer.com/add?text=Debugging the whole ecosystem by @VincentChan&url=http://cowlibob.co.uk/2017/01/28/debugging-the-whole-ecosystem.html" target="_blank"></a></li>
+      <li><a class="shareButton shareButton--hackernews" href="http://news.ycombinator.com/submitlink?u=http://cowlibob.co.uk/2017/01/28/debugging-the-whole-ecosystem.html&t=Debugging the whole ecosystem" target="_blank"></a></li>
+      <li><a class="shareButton shareButton--pocket" href="https://getpocket.com/save?url=http://cowlibob.co.uk/2017/01/28/debugging-the-whole-ecosystem.html&title=Debugging the whole ecosystem" target="_blank"></a></li>
     </ul>
   </div>
 </div>
